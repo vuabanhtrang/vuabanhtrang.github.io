@@ -20,9 +20,10 @@ const API_BASE = "https://vuabanhtrang.shop";
 let DATA = null;            // { quan, danhMuc[], monAn[] } — đã map từ API về shape cũ
 let activeCategory = "all";
 let keyword = "";
-let cart = {};             // { productId: { id, ten, gia, anh, qty } }
+let cart = {};             // { productId: { id, ten, gia, anh, qty, note } }
 let tableNumber = null;    // số bàn từ ?ban=
 let sending = false;       // chống double-submit khi gửi đơn
+let acceptingOrders = true; // quán có đang nhận đơn online không (server trả ở /menu)
 
 const $ = (id) => document.getElementById(id);
 
@@ -103,6 +104,8 @@ async function loadMenu() {
     if (!res.ok) throw new Error("HTTP " + res.status);
     const api = await res.json();
 
+    acceptingOrders = api.acceptingOrders !== false;   // mặc định nhận; chỉ tắt khi server báo false
+
     DATA = {
       quan: {
         ten: "Vua Bánh Tráng",
@@ -119,6 +122,7 @@ async function loadMenu() {
         gia: it.price,
         anh: it.imageUrl || "",
         danhMuc: it.categoryId,
+        conHang: it.available !== false,  // false = tạm hết (hàng nhập hết kho)
         noiBat: false,
         biet: ""
       }))
@@ -136,9 +140,10 @@ async function loadMenu() {
     const validCart = {};
     for (const id in cart) {
       const dish = DATA.monAn.find((m) => m.id === id);
-      if (dish && cart[id] && cart[id].qty > 0) {
+      // Giữ món còn trong menu VÀ còn hàng; đồng bộ giá/tên mới; giữ ghi chú từng món
+      if (dish && dish.conHang !== false && cart[id] && cart[id].qty > 0) {
         validCart[id] = { id: dish.id, ten: dish.ten, gia: dish.gia, anh: dish.anh,
-                          qty: Math.min(99, cart[id].qty) };
+                          qty: Math.min(99, cart[id].qty), note: cart[id].note || "" };
       }
     }
     cart = validCart;
@@ -148,6 +153,7 @@ async function loadMenu() {
     renderCategories();
     render();
     renderCartBar();
+    applyAcceptingState();
     showState("done");
   } catch (err) {
     console.error("Lỗi tải menu:", err);
@@ -198,9 +204,7 @@ function renderCategories() {
       wrap.querySelectorAll(".chip").forEach((b) => b.classList.remove("chip--active"));
       btn.classList.add("chip--active");
       render();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      const target = btn.offsetLeft - (wrap.clientWidth - btn.offsetWidth) / 2;
-      wrap.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: "smooth" });   // cuộn lên đầu xem kết quả lọc
     });
   });
 }
@@ -249,12 +253,18 @@ function render() {
 
 /* Tạo HTML cho 1 thẻ món — kèm nút thêm/+/- (theo trạng thái giỏ). */
 function dishHTML(m) {
-  const badge = m.noiBat ? `<span class="dish__badge">⭐ Nổi bật</span>` : "";
+  const out = m.conHang === false;   // tạm hết
+  const badge = out
+    ? `<span class="dish__badge dish__badge--out">Tạm hết</span>`
+    : (m.noiBat ? `<span class="dish__badge">⭐ Nổi bật</span>` : "");
   const biet = m.biet ? `<span class="dish__biet">👑 ${escapeHtml(m.biet)}</span>` : "";
   const anh = escapeHtml(m.anh || "");
   const desc = m.moTa ? `<p class="dish__desc">${escapeHtml(m.moTa)}</p>` : "";
+  const cartArea = out
+    ? `<span class="dish__out-label">Hết hàng</span>`
+    : `<div class="dish__cart" data-id="${escapeHtml(m.id)}"></div>`;
   return `
-    <article class="dish" data-id="${escapeHtml(m.id)}">
+    <article class="dish${out ? " dish--out" : ""}" data-id="${escapeHtml(m.id)}">
       ${badge}
       <div class="dish__img-wrap">
         <img class="dish__img" src="${anh}" alt="${escapeHtml(m.ten)}" loading="lazy" data-name="${escapeHtml(m.ten)}" />
@@ -264,7 +274,7 @@ function dishHTML(m) {
         ${desc}
         <div class="dish__bottom">
           <div class="dish__price">${formatPrice(m.gia)}</div>
-          <div class="dish__cart" data-id="${escapeHtml(m.id)}"></div>
+          ${cartArea}
         </div>
       </div>
     </article>`;
@@ -317,12 +327,14 @@ function findDish(id) {
 function changeQty(id, delta) {
   const dish = findDish(id);
   if (!dish) return;
+  if (delta > 0 && dish.conHang === false) return;   // món tạm hết -> không cho thêm
   const cur = cart[id] ? cart[id].qty : 0;
+  const prevNote = cart[id] ? cart[id].note : "";   // giữ ghi chú khi đổi số lượng
   const next = Math.max(0, Math.min(99, cur + delta));
   if (next === 0) {
     delete cart[id];
   } else {
-    cart[id] = { id: dish.id, ten: dish.ten, gia: dish.gia, anh: dish.anh, qty: next };
+    cart[id] = { id: dish.id, ten: dish.ten, gia: dish.gia, anh: dish.anh, qty: next, note: prevNote || "" };
   }
   saveCart();   // nhớ giỏ theo bàn (chống mất khi refresh)
   // Cập nhật chỉ cụm control của món này (tránh vẽ lại cả lưới)
@@ -369,7 +381,7 @@ function cartTotal() {
 function renderCartBar() {
   const bar = $("cartBar");
   const count = cartCount();
-  if (count <= 0) {
+  if (count <= 0 || !acceptingOrders) {   // tạm ngưng nhận đơn -> không hiện thanh giỏ
     bar.hidden = true;
     document.body.classList.remove("has-cart");
     return;
@@ -378,6 +390,18 @@ function renderCartBar() {
   document.body.classList.add("has-cart");   // chừa chỗ dưới cho thanh giỏ
   $("cartBarCount").textContent = count;
   $("cartBarTotal").textContent = formatPrice(cartTotal());
+}
+
+/* Quán tạm ngưng nhận đơn online -> hiện banner + chặn đặt (vẫn cho xem menu). */
+function applyAcceptingState() {
+  const warn = $("pausedWarn");
+  if (warn) warn.hidden = acceptingOrders;
+  // Khi tạm ngưng: ẩn thanh giỏ (không cho gửi). Khách vẫn xem menu + gọi nhân viên.
+  if (!acceptingOrders) {
+    const bar = $("cartBar");
+    if (bar) bar.hidden = true;
+    document.body.classList.remove("has-cart");
+  }
 }
 
 /* Mở/đóng modal giỏ */
@@ -399,16 +423,21 @@ function renderCartModal() {
 
   list.innerHTML = items.map((it) => `
     <div class="cart-item" data-id="${escapeHtml(it.id)}">
-      <div class="cart-item__info">
-        <div class="cart-item__name">${escapeHtml(it.ten)}</div>
-        <div class="cart-item__price">${formatPrice(it.gia)} × ${it.qty} = <b>${formatPrice(it.gia * it.qty)}</b></div>
+      <div class="cart-item__top">
+        <div class="cart-item__info">
+          <div class="cart-item__name">${escapeHtml(it.ten)}</div>
+          <div class="cart-item__price">${formatPrice(it.gia)} × ${it.qty} = <b>${formatPrice(it.gia * it.qty)}</b></div>
+        </div>
+        <div class="qty qty--sm">
+          <button type="button" class="qty__btn qty__minus" aria-label="Bớt">−</button>
+          <span class="qty__num">${it.qty}</span>
+          <button type="button" class="qty__btn qty__plus" aria-label="Thêm">+</button>
+        </div>
+        <button type="button" class="cart-item__del" aria-label="Xóa món">🗑</button>
       </div>
-      <div class="qty qty--sm">
-        <button type="button" class="qty__btn qty__minus" aria-label="Bớt">−</button>
-        <span class="qty__num">${it.qty}</span>
-        <button type="button" class="qty__btn qty__plus" aria-label="Thêm">+</button>
-      </div>
-      <button type="button" class="cart-item__del" aria-label="Xóa món">🗑</button>
+      <input type="text" class="cart-item__note" maxlength="200"
+             placeholder="Ghi chú món này (vd: không cay, ít đường...)"
+             value="${escapeHtml(it.note || "")}" aria-label="Ghi chú cho ${escapeHtml(it.ten)}" />
     </div>
   `).join("");
 
@@ -417,6 +446,10 @@ function renderCartModal() {
     row.querySelector(".qty__minus").addEventListener("click", () => changeQty(id, -1));
     row.querySelector(".qty__plus").addEventListener("click", () => changeQty(id, +1));
     row.querySelector(".cart-item__del").addEventListener("click", () => removeItem(id));
+    // Ghi chú từng món: lưu khi gõ (không re-render để con trỏ không nhảy)
+    row.querySelector(".cart-item__note").addEventListener("input", (e) => {
+      if (cart[id]) { cart[id].note = e.target.value; saveCart(); }
+    });
   });
 
   $("cartTotal").textContent = formatPrice(cartTotal());
@@ -444,7 +477,11 @@ async function submitOrder() {
   const note = $("cartNote").value.trim();
   const body = {
     tableNumber: tableNumber,
-    items: Object.values(cart).map((it) => ({ productId: it.id, quantity: it.qty })),
+    items: Object.values(cart).map((it) => ({
+      productId: it.id,
+      quantity: it.qty,
+      note: (it.note && it.note.trim()) ? it.note.trim() : null   // ghi chú riêng từng món
+    })),
     note: note || null
   };
 
@@ -468,6 +505,12 @@ async function submitOrder() {
     } else {
       const msg = data && data.message ? data.message : "Không gửi được đơn. Vui lòng thử lại.";
       showSendResult(false, msg);
+      // Quán vừa tạm ngưng nhận đơn (tự-khóa do quá tải hoặc nhân viên tắt) -> cập nhật lại UI
+      if (data && data.code === "ORDER_PAUSED") {
+        acceptingOrders = false;
+        closeCart();
+        applyAcceptingState();
+      }
     }
   } catch (err) {
     console.error("Lỗi gửi đơn:", err);

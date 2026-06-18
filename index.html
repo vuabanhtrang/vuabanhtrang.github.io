@@ -17,7 +17,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- ?v=5 là "cache bust": đổi số này mỗi lần sửa CSS để điện thoại tải bản mới -->
-  <link rel="stylesheet" href="style.css?v=6" />
+  <link rel="stylesheet" href="style.css?v=7" />
 </head>
 <body>
 
@@ -41,6 +41,11 @@
   <!-- Cảnh báo khi mở link KHÔNG có số bàn (không quét QR trên bàn) -->
   <div class="no-table-warn" id="noTableWarn" hidden>
     ⚠️ Bạn chưa quét mã QR tại bàn — hãy quét mã trên bàn để đặt món được giao đúng chỗ.
+  </div>
+
+  <!-- Quán tạm ngưng nhận đơn online (nhân viên tắt / tự-khóa do quá tải) -->
+  <div class="paused-warn" id="pausedWarn" hidden>
+    🔔 Quán đang tạm ngưng nhận đơn qua mạng. Bạn vẫn xem được menu — vui lòng gọi nhân viên để đặt món nhé!
   </div>
 
   <!-- Thanh tiện ích nhỏ: xem ảnh menu gốc + gọi nhân viên -->
@@ -158,7 +163,7 @@
   </div>
 
   <!-- Menu lấy ĐỘNG từ API POS (script.js) — KHÔNG còn dùng menu-data.js -->
-  <script src="script.js?v=6"></script>
+  <script src="script.js?v=7"></script>
 </body>
 </html>
 
