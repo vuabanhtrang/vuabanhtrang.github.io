@@ -4,3 +4,6 @@
 # File tam he dieu hanh
 Thumbs.db
 .DS_Store
+
+# File tro giup tam (khong can len GitHub)
+*.bat

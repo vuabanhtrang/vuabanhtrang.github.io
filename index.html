@@ -16,8 +16,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
-  <!-- ?v=1 là "cache bust": đổi số này mỗi lần sửa CSS để điện thoại tải bản mới -->
-  <link rel="stylesheet" href="style.css?v=4" />
+  <!-- ?v=5 là "cache bust": đổi số này mỗi lần sửa CSS để điện thoại tải bản mới -->
+  <link rel="stylesheet" href="style.css?v=5" />
 </head>
 <body>
 
@@ -108,16 +108,56 @@
   <!-- Thông báo nhỏ khi bấm "Gọi nhân viên" -->
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
+  <!-- ====== THANH GIỎ HÀNG NỔI (chỉ hiện khi có món, nằm trên thanh nút) ====== -->
+  <button type="button" class="cart-bar" id="cartBar" hidden aria-label="Xem giỏ hàng">
+    <span class="cart-bar__badge" id="cartBarCount">0</span>
+    <span class="cart-bar__label">Xem giỏ &amp; đặt món</span>
+    <span class="cart-bar__total" id="cartBarTotal">0đ</span>
+  </button>
+
+  <!-- ====== MODAL GIỎ HÀNG ====== -->
+  <div class="cart-modal" id="cartModal" hidden>
+    <div class="cart-sheet" role="dialog" aria-label="Giỏ hàng">
+      <div class="cart-sheet__head">
+        <h2 class="cart-sheet__title">🛒 Giỏ của bạn</h2>
+        <button type="button" class="cart-sheet__close" id="cartClose" aria-label="Đóng">✕</button>
+      </div>
+      <div class="cart-items" id="cartItems"></div>
+      <div class="cart-note-wrap">
+        <label class="cart-note__label" for="cartNote">Ghi chú cho quán (tuỳ chọn)</label>
+        <textarea id="cartNote" class="cart-note" rows="2" maxlength="500"
+                  placeholder="Vd: ít cay, không hành, mang đi..."></textarea>
+      </div>
+      <div class="cart-sheet__foot">
+        <div class="cart-sheet__total">
+          <span>Tổng tạm tính</span>
+          <strong id="cartTotal">0đ</strong>
+        </div>
+        <button type="button" class="cart-submit" id="cartSubmit">Gửi đơn</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== MODAL KẾT QUẢ GỬI ĐƠN ====== -->
+  <div class="result" id="resultModal" hidden>
+    <div class="result__card">
+      <div class="result__icon" id="resultIcon">✅</div>
+      <p class="result__msg" id="resultMsg"></p>
+      <button type="button" class="result__btn" id="resultClose">Đóng</button>
+    </div>
+  </div>
+
+  <!-- ====== NÚT GỌI NHÂN VIÊN / LIÊN HỆ (cố định dưới màn hình) ====== -->
+  <!-- (chuyển xuống cuối để nằm dưới cùng; giỏ hàng nổi phía trên) -->
+
   <!-- Lớp phủ xem ảnh menu gốc (bấm nền hoặc nút Đóng để tắt) -->
   <div class="lightbox" id="lightbox" hidden>
     <button type="button" class="lightbox__close" id="lightboxClose" aria-label="Đóng">✕</button>
     <img class="lightbox__img" src="images/menu-goc.jpg" alt="Menu gốc Vua Bánh Tráng" />
   </div>
 
-  <!-- Nạp DỮ LIỆU MÓN trước (qua thẻ script -> chạy được cả khi nhấp đúp mở file) -->
-  <script src="menu-data.js?v=4"></script>
-  <!-- ?v=4 cache bust giống style.css -->
-  <script src="script.js?v=4"></script>
+  <!-- Menu lấy ĐỘNG từ API POS (script.js) — KHÔNG còn dùng menu-data.js -->
+  <script src="script.js?v=5"></script>
 </body>
 </html>
 
