@@ -32,13 +32,13 @@ body {
   background: var(--cream);
   color: var(--text);
   line-height: 1.5;
-  /* chừa chỗ dưới cho thanh nút + thanh giỏ nổi không che món cuối (kể cả máy có "tai thỏ") */
-  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  /* Không có thanh nút cố định nữa (đã bỏ) -> đáy chỉ cần chút đệm. */
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
   transition: padding-bottom 0.2s;
 }
-/* Khi giỏ có món -> chừa thêm chỗ cho thanh giỏ nổi (JS thêm class này) */
+/* Khi giỏ có món -> chừa chỗ cho thanh giỏ nổi (cao ~58px) để KHÔNG che món cuối. */
 body.has-cart {
-  padding-bottom: calc(140px + env(safe-area-inset-bottom));
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
 
 img { max-width: 100%; display: block; }
@@ -99,29 +99,53 @@ img { max-width: 100%; display: block; }
   flex-shrink: 0;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
-.header__table-text { display: block; font-size: 0.62rem; font-weight: 600; text-transform: uppercase; }
-.header__table-number { display: block; font-size: 1.3rem; font-weight: 800; line-height: 1; }
+.header__table-text { display: block; font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.header__table-number { display: block; font-size: 1.55rem; font-weight: 800; line-height: 1; }
 
 /* ============================================================
-   NÚT XEM ẢNH MENU GỐC
+   THANH TIỆN ÍCH NHỎ (ảnh menu gốc + gọi nhân viên) — thay 3 nút to cũ
    ============================================================ */
-.view-original {
-  display: block;
-  width: calc(100% - 32px);
-  max-width: 688px;
+.topbar {
+  display: flex;
+  gap: 8px;
+  max-width: 720px;
   margin: 10px auto 0;
-  background: var(--yellow);
-  color: var(--green-dark);
+  padding: 0 16px;
+}
+.topbar__btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   border: none;
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 700;
-  padding: 10px;
+  padding: 11px 10px;
   border-radius: 12px;
   cursor: pointer;
+  min-height: 44px;
   box-shadow: var(--shadow);
 }
-.view-original:active { transform: scale(0.98); }
+.topbar__btn:active { transform: scale(0.98); }
+.topbar__btn--ghost { background: #fff; color: var(--green-dark); border: 1.5px solid var(--green-light); }
+.topbar__btn--staff { background: var(--yellow); color: var(--green-dark); }
+
+/* Cảnh báo thiếu số bàn (mở link không quét QR) */
+.no-table-warn {
+  max-width: 720px;
+  margin: 10px auto 0;
+  padding: 10px 14px;
+  background: #fff7e6;
+  border: 1.5px solid var(--yellow-dark);
+  border-radius: 12px;
+  color: #8a5a00;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.no-table-warn[hidden] { display: none; }
 
 /* Lớp phủ (lightbox) hiển thị ảnh menu gốc toàn màn hình */
 .lightbox[hidden] { display: none; }   /* tôn trọng thuộc tính hidden (nếu thiếu sẽ hiện luôn) */
@@ -548,7 +572,7 @@ img { max-width: 100%; display: block; }
 .cart-bar {
   position: fixed;
   /* nằm NGAY TRÊN thanh actions (cao ~66px) + safe area */
-  bottom: calc(72px + env(safe-area-inset-bottom));
+  bottom: calc(12px + env(safe-area-inset-bottom));
   left: 16px; right: 16px;
   max-width: 688px;
   margin: 0 auto;
@@ -733,10 +757,30 @@ img { max-width: 100%; display: block; }
   cursor: pointer;
 }
 
-/* Màn rộng: thanh giỏ + actions canh giữa theo max-width */
+/* Hiệu ứng đập nhẹ thanh giỏ khi vừa thêm món (phản hồi "đã thêm") */
+@keyframes cartPulse { 0%{transform:scale(1)} 35%{transform:scale(1.04)} 100%{transform:scale(1)} }
+.cart-bar--pulse { animation: cartPulse 0.3s ease; }
+
+/* Nút xóa nhanh 1 món trong giỏ */
+.cart-item__del {
+  border: none;
+  background: transparent;
+  font-size: 1.15rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  opacity: .65;
+  flex-shrink: 0;
+}
+.cart-item__del:active { opacity: 1; transform: scale(0.9); }
+
+/* Thông báo kết quả gửi đơn — cho phép xuống dòng (\n) */
+.result__msg { white-space: pre-line; }
+
+/* Màn rộng: thanh giỏ canh giữa theo max-width */
 @media (min-width: 600px) {
   .cart-bar { left: 50%; transform: translateX(-50%); right: auto; width: calc(100% - 32px); }
   .cart-bar:active { transform: translateX(-50%) scale(0.99); }
+  .cart-bar--pulse { animation: cartPulse 0.3s ease; }
 }
 
 /* Tôn trọng người dùng tắt hiệu ứng chuyển động */

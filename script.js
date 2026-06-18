@@ -26,6 +26,26 @@ let sending = false;       // chống double-submit khi gửi đơn
 
 const $ = (id) => document.getElementById(id);
 
+/* ---- Lưu/đọc giỏ theo bàn (localStorage) — khách lỡ refresh không mất món ---- */
+function cartStorageKey() {
+  return "vbt_cart_ban_" + (tableNumber != null ? tableNumber : "none");
+}
+function saveCart() {
+  try { localStorage.setItem(cartStorageKey(), JSON.stringify(cart)); } catch (e) {}
+}
+function loadCartFromStorage() {
+  try {
+    const raw = localStorage.getItem(cartStorageKey());
+    if (raw) {
+      const obj = JSON.parse(raw);
+      if (obj && typeof obj === "object") cart = obj;
+    }
+  } catch (e) { cart = {}; }
+}
+function clearCartStorage() {
+  try { localStorage.removeItem(cartStorageKey()); } catch (e) {}
+}
+
 /* ============================================================
    1) HÀM TIỆN ÍCH
    ============================================================ */
@@ -62,6 +82,10 @@ function setupTableNumber() {
     $("banNumber").textContent = ban;
     $("banLabel").hidden = false;
     document.title = "Bàn " + ban + " - Vua Bánh Tráng";
+  } else {
+    // Không có số bàn hợp lệ -> cảnh báo SỚM (ngay đầu trang), không đợi tới lúc gửi đơn
+    const warn = $("noTableWarn");
+    if (warn) warn.hidden = false;
   }
 }
 
@@ -105,6 +129,20 @@ async function loadMenu() {
     DATA.danhMuc = DATA.danhMuc.filter((dm) => catsWithItems.has(dm.id));
 
     if (DATA.monAn.length === 0) throw new Error("Menu trống");
+
+    // Nạp lại giỏ đã lưu của bàn này (nếu khách lỡ refresh). Chỉ giữ món CÒN trong menu +
+    // đồng bộ giá/tên mới nhất từ server (tránh khách giữ giá cũ).
+    loadCartFromStorage();
+    const validCart = {};
+    for (const id in cart) {
+      const dish = DATA.monAn.find((m) => m.id === id);
+      if (dish && cart[id] && cart[id].qty > 0) {
+        validCart[id] = { id: dish.id, ten: dish.ten, gia: dish.gia, anh: dish.anh,
+                          qty: Math.min(99, cart[id].qty) };
+      }
+    }
+    cart = validCart;
+    saveCart();
 
     applyShopInfo();
     renderCategories();
@@ -286,11 +324,32 @@ function changeQty(id, delta) {
   } else {
     cart[id] = { id: dish.id, ten: dish.ten, gia: dish.gia, anh: dish.anh, qty: next };
   }
+  saveCart();   // nhớ giỏ theo bàn (chống mất khi refresh)
   // Cập nhật chỉ cụm control của món này (tránh vẽ lại cả lưới)
   const box = document.querySelector(`.dish__cart[data-id="${cssEscape(id)}"]`);
   if (box) renderDishControl(box, id);
   renderCartBar();
+  if (delta > 0) pulseCartBar();   // phản hồi "đã thêm" — thanh giỏ đập nhẹ
   // Nếu modal giỏ đang mở -> cập nhật luôn
+  if (!$("cartModal").hidden) renderCartModal();
+}
+
+/* Hiệu ứng đập nhẹ thanh giỏ khi vừa thêm món (phản hồi tức thì cho khách). */
+function pulseCartBar() {
+  const bar = $("cartBar");
+  if (!bar || bar.hidden) return;
+  bar.classList.remove("cart-bar--pulse");
+  void bar.offsetWidth;            // ép reflow để animation chạy lại
+  bar.classList.add("cart-bar--pulse");
+}
+
+/* Xóa hẳn 1 món khỏi giỏ (nút xóa nhanh trong modal). */
+function removeItem(id) {
+  delete cart[id];
+  saveCart();
+  const box = document.querySelector(`.dish__cart[data-id="${cssEscape(id)}"]`);
+  if (box) renderDishControl(box, id);
+  renderCartBar();
   if (!$("cartModal").hidden) renderCartModal();
 }
 
@@ -342,14 +401,14 @@ function renderCartModal() {
     <div class="cart-item" data-id="${escapeHtml(it.id)}">
       <div class="cart-item__info">
         <div class="cart-item__name">${escapeHtml(it.ten)}</div>
-        <div class="cart-item__price">${formatPrice(it.gia)}</div>
+        <div class="cart-item__price">${formatPrice(it.gia)} × ${it.qty} = <b>${formatPrice(it.gia * it.qty)}</b></div>
       </div>
       <div class="qty qty--sm">
         <button type="button" class="qty__btn qty__minus" aria-label="Bớt">−</button>
         <span class="qty__num">${it.qty}</span>
         <button type="button" class="qty__btn qty__plus" aria-label="Thêm">+</button>
       </div>
-      <div class="cart-item__line">${formatPrice(it.gia * it.qty)}</div>
+      <button type="button" class="cart-item__del" aria-label="Xóa món">🗑</button>
     </div>
   `).join("");
 
@@ -357,6 +416,7 @@ function renderCartModal() {
     const id = row.dataset.id;
     row.querySelector(".qty__minus").addEventListener("click", () => changeQty(id, -1));
     row.querySelector(".qty__plus").addEventListener("click", () => changeQty(id, +1));
+    row.querySelector(".cart-item__del").addEventListener("click", () => removeItem(id));
   });
 
   $("cartTotal").textContent = formatPrice(cartTotal());
@@ -398,10 +458,13 @@ async function submitOrder() {
 
     if (res.ok) {
       cart = {};
+      clearCartStorage();    // đã gửi -> xóa giỏ đã lưu của bàn
       renderCartBar();
       render();              // reset nút +/- trên lưới
       closeCart();
-      showSendResult(true, "Đơn của bàn " + tableNumber + " đã gửi! Nhân viên sẽ xác nhận ngay.");
+      showSendResult(true,
+        "Đơn của bàn " + tableNumber + " đã gửi! 🎉\n" +
+        "Nhân viên đang xác nhận, món sẽ được chuẩn bị ngay. Bạn có thể đặt thêm bất cứ lúc nào.");
     } else {
       const msg = data && data.message ? data.message : "Không gửi được đơn. Vui lòng thử lại.";
       showSendResult(false, msg);

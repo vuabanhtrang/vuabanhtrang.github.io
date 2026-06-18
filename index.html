@@ -17,7 +17,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- ?v=5 là "cache bust": đổi số này mỗi lần sửa CSS để điện thoại tải bản mới -->
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css?v=6" />
 </head>
 <body>
 
@@ -38,10 +38,20 @@
     </div>
   </header>
 
-  <!-- Nút xem ảnh menu gốc (bản menu đầy đủ hình của quán) -->
-  <button type="button" class="view-original" id="viewOriginalBtn">
-    🖼️ Xem ảnh menu gốc
-  </button>
+  <!-- Cảnh báo khi mở link KHÔNG có số bàn (không quét QR trên bàn) -->
+  <div class="no-table-warn" id="noTableWarn" hidden>
+    ⚠️ Bạn chưa quét mã QR tại bàn — hãy quét mã trên bàn để đặt món được giao đúng chỗ.
+  </div>
+
+  <!-- Thanh tiện ích nhỏ: xem ảnh menu gốc + gọi nhân viên -->
+  <div class="topbar">
+    <button type="button" class="topbar__btn topbar__btn--ghost" id="viewOriginalBtn">
+      🖼️ Ảnh menu gốc
+    </button>
+    <button type="button" class="topbar__btn topbar__btn--staff" id="staffBtn">
+      🔔 Gọi nhân viên
+    </button>
+  </div>
 
   <!-- ====== Ô TÌM KIẾM ====== -->
   <div class="search">
@@ -92,18 +102,9 @@
     <div id="footerPhone"></div>
   </footer>
 
-  <!-- ====== NÚT GỌI NHÂN VIÊN / LIÊN HỆ (cố định dưới màn hình) ====== -->
-  <div class="actions" id="actionBar">
-    <a class="action action--call" id="callBtn" href="tel:0900000000">
-      <span class="action__icon">📞</span> Gọi quán
-    </a>
-    <a class="action action--zalo" id="zaloBtn" href="https://zalo.me/0900000000" target="_blank" rel="noopener">
-      <span class="action__icon">💬</span> Zalo
-    </a>
-    <button type="button" class="action action--staff" id="staffBtn">
-      <span class="action__icon">🔔</span> Gọi nhân viên
-    </button>
-  </div>
+  <!-- Liên hệ ẩn — chỉ giữ để footer/JS set href (hotline + Zalo hiện ở footer + nút header) -->
+  <a id="callBtn" href="tel:0900000000" hidden></a>
+  <a id="zaloBtn" href="https://zalo.me/0900000000" hidden></a>
 
   <!-- Thông báo nhỏ khi bấm "Gọi nhân viên" -->
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
@@ -157,7 +158,7 @@
   </div>
 
   <!-- Menu lấy ĐỘNG từ API POS (script.js) — KHÔNG còn dùng menu-data.js -->
-  <script src="script.js?v=5"></script>
+  <script src="script.js?v=6"></script>
 </body>
 </html>
 
