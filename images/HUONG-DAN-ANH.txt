@@ -1,0 +1,20 @@
+THƯ MỤC ẢNH MÓN ĂN
+==================
+
+Bỏ tất cả ảnh món ăn vào thư mục này (images/).
+
+QUY TẮC ĐẶT TÊN ẢNH:
+- Tên ảnh phải KHỚP với phần "anh" trong file menu-data.js.
+  Ví dụ trong menu-data.js: "anh": "images/banh-trang-tron.jpg"
+  -> thì ảnh phải tên đúng là: banh-trang-tron.jpg, đặt trong thư mục images/
+
+LỜI KHUYÊN:
+- Tên ảnh KHÔNG dấu, KHÔNG khoảng trắng (dùng dấu gạch ngang -).
+  ĐÚNG:  banh-trang-nuong.jpg
+  SAI:   Bánh Tráng Nướng.jpg
+- Nên dùng ảnh vuông (ví dụ 600x600) cho đẹp.
+- Nén ảnh nhẹ dưới 200KB để khách tải nhanh (dùng tinypng.com).
+- Định dạng nên là .jpg (ảnh chụp) hoặc .webp (nhẹ hơn).
+
+NẾU CHƯA CÓ ẢNH:
+- Trang web vẫn chạy bình thường, chỗ thiếu ảnh sẽ hiện biểu tượng 🍽️ thay thế.

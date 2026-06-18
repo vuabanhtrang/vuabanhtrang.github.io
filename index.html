@@ -1,0 +1,124 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <!-- viewport: bắt buộc để web hiển thị đúng trên điện thoại (mobile-first) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2e7d32" />
+  <meta name="description" content="Menu Vua Bánh Tráng - đặc sản bánh tráng Tây Ninh" />
+  <title>Vua Bánh Tráng - Menu</title>
+  <!-- Favicon: dùng logo quán cho tab trình duyệt + khi lưu màn hình chính -->
+  <link rel="icon" href="vbt-logo-full.png" />
+  <link rel="apple-touch-icon" href="vbt-logo-full.png" />
+
+  <!-- Tải sẵn font cho chữ đẹp, dễ đọc trên điện thoại -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- ?v=1 là "cache bust": đổi số này mỗi lần sửa CSS để điện thoại tải bản mới -->
+  <link rel="stylesheet" href="style.css?v=4" />
+</head>
+<body>
+
+  <!-- ====== HEADER: logo + tên quán + số bàn ====== -->
+  <header class="header">
+    <div class="header__inner">
+      <img class="header__logo" src="vbt-logo-full.png" alt="Logo Vua Bánh Tráng"
+           onerror="this.style.display='none'" />
+      <div class="header__text">
+        <h1 class="header__title">Vua Bánh Tráng</h1>
+        <p class="header__subtitle" id="quanMoTa" hidden></p>
+      </div>
+      <!-- Số bàn lấy từ URL ?ban=5, JS sẽ điền vào. Ẩn nếu không có. -->
+      <div class="header__table" id="banLabel" hidden>
+        <span class="header__table-text">Bàn</span>
+        <span class="header__table-number" id="banNumber">–</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Nút xem ảnh menu gốc (bản menu đầy đủ hình của quán) -->
+  <button type="button" class="view-original" id="viewOriginalBtn">
+    🖼️ Xem ảnh menu gốc
+  </button>
+
+  <!-- ====== Ô TÌM KIẾM ====== -->
+  <div class="search">
+    <div class="search__box">
+      <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <input type="search" id="searchInput" class="search__input"
+             placeholder="Tìm món ăn..." autocomplete="off" aria-label="Tìm món ăn" />
+      <button type="button" id="searchClear" class="search__clear" aria-label="Xóa tìm kiếm" hidden>×</button>
+    </div>
+  </div>
+
+  <!-- ====== THANH DANH MỤC (lọc theo loại món) ====== -->
+  <nav class="categories" id="categories" aria-label="Danh mục món ăn">
+    <!-- JS sẽ tự tạo các nút danh mục ở đây -->
+  </nav>
+
+  <!-- ====== KHU VỰC HIỂN THỊ MÓN ====== -->
+  <main class="content" id="content">
+
+    <!-- Trạng thái LOADING (đang tải menu) -->
+    <div class="state state--loading" id="loadingState">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Đang tải menu...</p>
+    </div>
+
+    <!-- Trạng thái LỖI (không tải được dữ liệu) -->
+    <div class="state state--error" id="errorState" hidden>
+      <p class="state__emoji">😕</p>
+      <p>Không tải được menu. Vui lòng thử lại.</p>
+      <button type="button" class="btn-retry" id="retryBtn">Tải lại</button>
+    </div>
+
+    <!-- Trạng thái KHÔNG TÌM THẤY MÓN -->
+    <div class="state state--empty" id="emptyState" hidden>
+      <p class="state__emoji">🔍</p>
+      <p>Không tìm thấy món nào phù hợp.</p>
+    </div>
+
+    <!-- Danh sách món (JS điền vào) -->
+    <div class="menu" id="menuList"></div>
+  </main>
+
+  <!-- ====== FOOTER: địa chỉ + hotline (JS điền từ menu-data.js) ====== -->
+  <footer class="site-footer" id="siteFooter" hidden>
+    <div id="footerAddr"></div>
+    <div id="footerPhone"></div>
+  </footer>
+
+  <!-- ====== NÚT GỌI NHÂN VIÊN / LIÊN HỆ (cố định dưới màn hình) ====== -->
+  <div class="actions" id="actionBar">
+    <a class="action action--call" id="callBtn" href="tel:0900000000">
+      <span class="action__icon">📞</span> Gọi quán
+    </a>
+    <a class="action action--zalo" id="zaloBtn" href="https://zalo.me/0900000000" target="_blank" rel="noopener">
+      <span class="action__icon">💬</span> Zalo
+    </a>
+    <button type="button" class="action action--staff" id="staffBtn">
+      <span class="action__icon">🔔</span> Gọi nhân viên
+    </button>
+  </div>
+
+  <!-- Thông báo nhỏ khi bấm "Gọi nhân viên" -->
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- Lớp phủ xem ảnh menu gốc (bấm nền hoặc nút Đóng để tắt) -->
+  <div class="lightbox" id="lightbox" hidden>
+    <button type="button" class="lightbox__close" id="lightboxClose" aria-label="Đóng">✕</button>
+    <img class="lightbox__img" src="images/menu-goc.jpg" alt="Menu gốc Vua Bánh Tráng" />
+  </div>
+
+  <!-- Nạp DỮ LIỆU MÓN trước (qua thẻ script -> chạy được cả khi nhấp đúp mở file) -->
+  <script src="menu-data.js?v=4"></script>
+  <!-- ?v=4 cache bust giống style.css -->
+  <script src="script.js?v=4"></script>
+</body>
+</html>
+
+

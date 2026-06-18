@@ -1,0 +1,6 @@
+# Cau hinh noi bo (khong phai code web, khong can len GitHub)
+.claude/
+
+# File tam he dieu hanh
+Thumbs.db
+.DS_Store
