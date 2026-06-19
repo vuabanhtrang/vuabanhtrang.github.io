@@ -16,6 +16,15 @@
    (server đã whitelist origin github.io trong CORS). */
 const API_BASE = "https://vuabanhtrang.shop";
 
+/* Ảnh món do POS trả về dạng tương đối "/uploads/products/x.jpg" (không có tên miền).
+   Trang khách chạy trên github.io nên PHẢI ghép API_BASE vào, nếu không trình duyệt sẽ
+   tìm ảnh ở github.io → 404, ảnh không hiện. URL đã đầy đủ (http...) thì giữ nguyên. */
+function fullImageUrl(url) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  return API_BASE + (url.charAt(0) === "/" ? "" : "/") + url;
+}
+
 /* ---- State ---- */
 let DATA = null;            // { quan, danhMuc[], monAn[] } — đã map từ API về shape cũ
 let activeCategory = "all";
@@ -124,7 +133,7 @@ async function loadMenu() {
         ten: it.name,
         moTa: "",                     // API công khai không trả mô tả
         gia: it.price,
-        anh: it.imageUrl || "",
+        anh: fullImageUrl(it.imageUrl),   // ghép tên miền POS vào ảnh tương đối
         danhMuc: it.categoryId,
         conHang: it.available !== false,  // false = tạm hết (hàng nhập hết kho)
         noiBat: false,
