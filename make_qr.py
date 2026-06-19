@@ -9,12 +9,22 @@ Dung: python make_qr.py 1            # tao ban 1
 """
 import sys, io, os
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-import segno
+import segno, hmac, hashlib
 from PIL import Image, ImageDraw, ImageFont
 
 BASE_URL = "https://vuabanhtrang.github.io"
 OUT_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "qr-ban")
 LOGO     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vbt-logo-full.png")
+
+# Secret để sinh KEY bí mật của QR (HMAC) — đọc từ biến môi trường, KHÔNG hardcode/commit.
+# Phải GIỐNG secret cấu hình ở server (.env: TableToken__Secret). Thiếu -> QR không có key.
+TABLE_SECRET = os.environ.get("TABLE_SECRET", "").strip()
+
+def table_key(ban):
+    """Key của 1 bàn = HMAC-SHA256(secret, 'ban:N')[:8] hex thường — khớp TableTokenService C#."""
+    if not TABLE_SECRET:
+        return None
+    return hmac.new(TABLE_SECRET.encode(), f"ban:{ban}".encode(), hashlib.sha256).hexdigest()[:8]
 
 # Mau (khop trang khach)
 GREEN      = (46, 125, 50)
@@ -48,7 +58,8 @@ def center_text(draw, cx, y, text, font, fill):
     return bbox[3] - bbox[1]
 
 def make_card(ban):
-    url = f"{BASE_URL}?ban={ban}"
+    key = table_key(ban)
+    url = f"{BASE_URL}?ban={ban}&k={key}" if key else f"{BASE_URL}?ban={ban}"
 
     # 1) QR (error correction H de chiu duoc logo giua)
     qr = segno.make(url, error="h")

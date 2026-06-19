@@ -22,6 +22,7 @@ let activeCategory = "all";
 let keyword = "";
 let cart = {};             // { productId: { id, ten, gia, anh, qty, note } }
 let tableNumber = null;    // số bàn từ ?ban=
+let tableKey = "";         // key bí mật của bàn từ ?k= (chống đoán link) — gửi kèm khi đặt
 let sending = false;       // chống double-submit khi gửi đơn
 let acceptingOrders = true; // quán có đang nhận đơn online không (server trả ở /menu)
 
@@ -78,6 +79,9 @@ function getQueryParam(name) {
    ============================================================ */
 function setupTableNumber() {
   const ban = getQueryParam("ban");
+  // Key bí mật của bàn (?k=...) — chỉ nhận hex thường, an toàn để đính vào URL POST
+  const k = getQueryParam("k");
+  if (k && /^[a-f0-9]{4,32}$/.test(k)) tableKey = k;
   if (ban && /^\d{1,4}$/.test(ban)) {
     tableNumber = parseInt(ban, 10);
     $("banNumber").textContent = ban;
@@ -486,7 +490,8 @@ async function submitOrder() {
   };
 
   try {
-    const res = await fetch(API_BASE + "/api/public/orders?ban=" + encodeURIComponent(tableNumber), {
+    const keyParam = tableKey ? "&k=" + encodeURIComponent(tableKey) : "";
+    const res = await fetch(API_BASE + "/api/public/orders?ban=" + encodeURIComponent(tableNumber) + keyParam, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify(body)
