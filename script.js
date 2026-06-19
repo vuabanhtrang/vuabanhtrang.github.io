@@ -574,17 +574,49 @@ function setupSearch() {
 function setupStaffButton() {
   const toast = $("toast");
   let timer = null;
+  let calling = false;   // chống bấm dồn
 
-  $("staffBtn").addEventListener("click", () => {
-    const ban = getQueryParam("ban");
-    toast.textContent = ban ? `🔔 Đã báo nhân viên tới bàn ${ban}!` : "🔔 Đã báo nhân viên, vui lòng chờ!";
+  function showToast(msg) {
+    toast.textContent = msg;
     toast.hidden = false;
     requestAnimationFrame(() => toast.classList.add("toast--show"));
     clearTimeout(timer);
     timer = setTimeout(() => {
       toast.classList.remove("toast--show");
       setTimeout(() => (toast.hidden = true), 250);
-    }, 2500);
+    }, 3000);
+  }
+
+  $("staffBtn").addEventListener("click", async () => {
+    if (calling) return;
+    // Phải có số bàn (gọi để nhân viên biết ra bàn nào)
+    if (!tableNumber) {
+      showToast("⚠️ Vui lòng quét mã QR trên bàn để gọi nhân viên.");
+      return;
+    }
+    calling = true;
+    const btn = $("staffBtn");
+    const oldText = btn.innerHTML;
+    btn.innerHTML = "⏳ Đang gọi...";
+    try {
+      const keyParam = tableKey ? "&k=" + encodeURIComponent(tableKey) : "";
+      const res = await fetch(API_BASE + "/api/public/call-staff?ban=" + encodeURIComponent(tableNumber) + keyParam, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ tableNumber: tableNumber })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast("🔔 " + (data.message || `Đã gọi nhân viên tới bàn ${tableNumber}!`));
+      } else {
+        showToast("⚠️ " + (data.message || "Không gọi được. Vui lòng thử lại."));
+      }
+    } catch (e) {
+      showToast("⚠️ Lỗi mạng. Vui lòng thử lại.");
+    } finally {
+      calling = false;
+      btn.innerHTML = oldText;
+    }
   });
 }
 
