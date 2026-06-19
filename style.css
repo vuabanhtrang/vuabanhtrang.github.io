@@ -132,6 +132,35 @@ img { max-width: 100%; display: block; }
 .topbar__btn--ghost { background: #fff; color: var(--green-dark); border: 1.5px solid var(--green-light); }
 .topbar__btn--staff { background: var(--yellow); color: var(--green-dark); }
 
+/* ---- Mạng xã hội (TikTok / Facebook) ---- */
+.socials {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: 720px;
+  margin: 8px auto 0;
+  padding: 0 16px;
+}
+.socials__label { font-size: 0.85rem; font-weight: 600; color: var(--text-soft); }
+.social {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 7px 13px;
+  border-radius: 999px;
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+.social:active { transform: scale(0.97); }
+.social svg { display: block; }
+.social--tiktok { background: #111; }   /* TikTok đen đặc trưng */
+.social--fb { background: #1877f2; }     /* Facebook xanh dương */
+
 /* Cảnh báo thiếu số bàn (mở link không quét QR) */
 .no-table-warn {
   max-width: 720px;

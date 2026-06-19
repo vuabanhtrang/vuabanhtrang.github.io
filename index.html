@@ -17,7 +17,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- ?v=5 là "cache bust": đổi số này mỗi lần sửa CSS để điện thoại tải bản mới -->
-  <link rel="stylesheet" href="style.css?v=9" />
+  <link rel="stylesheet" href="style.css?v=10" />
 </head>
 <body>
 
@@ -56,6 +56,27 @@
     <button type="button" class="topbar__btn topbar__btn--staff" id="staffBtn">
       🔔 Gọi nhân viên
     </button>
+  </div>
+
+  <!-- Mạng xã hội: click mở TikTok / Fanpage của quán (tab mới) -->
+  <div class="socials">
+    <span class="socials__label">Theo dõi quán:</span>
+    <a class="social social--tiktok"
+       href="https://www.tiktok.com/@vua.bnh.trng.ti.k?_r=1&_t=ZS-97Ka8dzdjm8"
+       target="_blank" rel="noopener" aria-label="TikTok Vua Bánh Tráng">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
+        <path d="M16.5 3c.3 2.2 1.6 3.6 3.7 3.8v2.4c-1.2.1-2.4-.2-3.6-.9v5.9c0 3.4-2.5 5.8-5.8 5.8a5.6 5.6 0 1 1 1-11.1v2.5a3.2 3.2 0 1 0 2.3 3V3h2.4z"/>
+      </svg>
+      <span>TikTok</span>
+    </a>
+    <a class="social social--fb"
+       href="https://www.facebook.com/share/1CmAENKA1E/?mibextid=wwXIfr"
+       target="_blank" rel="noopener" aria-label="Facebook Vua Bánh Tráng">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
+        <path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12z"/>
+      </svg>
+      <span>Facebook</span>
+    </a>
   </div>
 
   <!-- ====== Ô TÌM KIẾM ====== -->
@@ -163,7 +184,7 @@
   </div>
 
   <!-- Menu lấy ĐỘNG từ API POS (script.js) — KHÔNG còn dùng menu-data.js -->
-  <script src="script.js?v=9"></script>
+  <script src="script.js?v=10"></script>
 </body>
 </html>
 
