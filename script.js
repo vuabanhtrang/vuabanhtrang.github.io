@@ -635,15 +635,40 @@ function setupStaffButton() {
 function setupLightbox() {
   const box = $("lightbox");
   if (!box) return;
-  const open = () => { box.hidden = false; document.body.style.overflow = "hidden"; };
+  const imgEl = $("lightboxImg");
+  const MENU_SRC = "images/menu-quan.jpg?v=2";
+
+  // Mo lightbox voi 1 anh bat ky (src + alt). Khong truyen -> mac dinh menu quan.
+  const open = (src, alt) => {
+    if (imgEl) {
+      imgEl.src = src || MENU_SRC;
+      imgEl.alt = alt || "Menu quán Vua Bánh Tráng";
+    }
+    box.hidden = false;
+    document.body.style.overflow = "hidden";
+  };
   const close = () => { box.hidden = true; document.body.style.overflow = ""; };
 
+  // Nut "Xem menu quan" -> anh menu quan
   const btn = $("viewOriginalBtn");
-  if (btn) btn.addEventListener("click", open);
+  if (btn) btn.addEventListener("click", () => open(MENU_SRC, "Menu quán Vua Bánh Tráng"));
+
+  // Click ANH MON -> phong to dung mon do. Dung event delegation tren container menu
+  // vi the mon duoc render lai moi lan loc/tim kiem. Chi bat khi bam dung <img> mon
+  // (khong dinh toi nut +/- them gio -> khong xung dot). Bo qua anh fallback (khong co src that).
+  const menuRoot = $("menuList") || document;
+  menuRoot.addEventListener("click", (e) => {
+    const img = e.target.closest(".dish__img");
+    if (!img || img.classList.contains("dish__img--fallback")) return;
+    const src = img.getAttribute("src");
+    if (!src) return;
+    open(src, img.getAttribute("data-name") || img.alt || "Món ăn");
+  });
+
   const closeBtn = $("lightboxClose");
   if (closeBtn) closeBtn.addEventListener("click", close);
   box.addEventListener("click", (e) => { if (e.target === box) close(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !box.hidden) close(); });
 }
 
 /* ============================================================
