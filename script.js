@@ -57,27 +57,36 @@ function clearCartStorage() {
   try { localStorage.removeItem(cartStorageKey()); } catch (e) {}
 }
 
-/* ---- "Đơn của tôi": lưu đơn vừa đặt theo bàn để khách XEM LẠI + theo dõi trạng thái ---- */
-let myOrder = null;          // { orderId, code, waitingNumber, total, items, note, state }
+/* ---- "Đơn của tôi": lưu NHIỀU đơn theo bàn (xem lại đơn cũ), tự reset sau 3 tiếng ---- */
+let myOrders = [];           // [{ orderId, code, servingNumber, total, items, note, state, createdAt }]
 let statusTimer = null;      // timer poll trạng thái
 
-function myOrderStorageKey() {
-  return "vbt_myorder_ban_" + (tableNumber != null ? tableNumber : "none");
+const MY_ORDERS_TTL_MS = 3 * 60 * 60 * 1000;   // 3 tiếng
+
+function myOrdersStorageKey() {
+  return "vbt_myorders_ban_" + (tableNumber != null ? tableNumber : "none");
 }
-function saveMyOrder() {
+function saveMyOrders() {
   try {
-    if (myOrder) localStorage.setItem(myOrderStorageKey(), JSON.stringify(myOrder));
-    else localStorage.removeItem(myOrderStorageKey());
+    if (myOrders.length) localStorage.setItem(myOrdersStorageKey(), JSON.stringify(myOrders));
+    else localStorage.removeItem(myOrdersStorageKey());
   } catch (e) {}
 }
-function loadMyOrderFromStorage() {
+/* Đọc đơn đã lưu + LỌC BỎ đơn quá 3 tiếng (tự reset). */
+function loadMyOrdersFromStorage() {
   try {
-    const raw = localStorage.getItem(myOrderStorageKey());
+    const raw = localStorage.getItem(myOrdersStorageKey());
     if (raw) {
-      const obj = JSON.parse(raw);
-      if (obj && obj.orderId) myOrder = obj;
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        const now = Date.now();
+        myOrders = arr.filter((o) => o && o.orderId && o.createdAt && (now - o.createdAt) < MY_ORDERS_TTL_MS);
+        // Mới nhất lên trên
+        myOrders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        saveMyOrders();   // ghi lại sau khi đã lọc đơn hết hạn
+      }
     }
-  } catch (e) { myOrder = null; }
+  } catch (e) { myOrders = []; }
 }
 
 /* ============================================================
@@ -537,17 +546,25 @@ async function submitOrder() {
     const data = await res.json().catch(() => ({}));
 
     if (res.ok) {
-      // Lưu "đơn của tôi" để khách XEM LẠI + theo dõi + sửa/hủy. Giữ cả items để bấm "Sửa" nạp lại giỏ.
-      myOrder = {
+      const orderObj = {
         orderId: data.orderId,
         code: data.code,
-        waitingNumber: data.waitingNumber || (data.code ? data.code.split("-").pop() : ""),
+        servingNumber: (data.servingNumber != null ? data.servingNumber : null),  // null lúc đặt — cấp khi xác nhận
         total: data.total,
         note: note || "",
         items: Object.values(cart).map((it) => ({ id: it.id, ten: it.ten, gia: it.gia, anh: it.anh, qty: it.qty, note: it.note || "" })),
-        state: "Pending"
+        state: "Pending",
+        createdAt: Date.now()
       };
-      saveMyOrder();
+      if (isEditing) {
+        // SỬA: cập nhật đơn cũ trong danh sách (giữ createdAt cũ để TTL 3h tính từ lúc đặt đầu).
+        const i = myOrders.findIndex((x) => x.orderId === editingOrderId);
+        if (i >= 0) { orderObj.createdAt = myOrders[i].createdAt || Date.now(); myOrders[i] = orderObj; }
+        else myOrders.unshift(orderObj);
+      } else {
+        myOrders.unshift(orderObj);   // đơn mới lên đầu
+      }
+      saveMyOrders();
 
       cart = {};
       clearCartStorage();    // đã gửi -> xóa giỏ đã lưu của bàn
@@ -555,14 +572,14 @@ async function submitOrder() {
       renderCartBar();
       render();              // reset nút +/- trên lưới
       closeCart();
-      renderMyOrder();       // hiện thẻ "Số chờ #..." + trạng thái
-      startStatusPoll();     // bắt đầu theo dõi trạng thái
+      renderMyOrders();      // hiện danh sách đơn
+      startStatusPoll();     // theo dõi trạng thái
     } else if (res.status === 409) {
       // Sửa đúng lúc nhân viên vừa nhận đơn -> không sửa được nữa. Báo + cập nhật trạng thái.
       showSendResult(false, (data && data.message) || "Đơn đã được nhân viên tiếp nhận, không sửa được.");
       editingOrderId = null;
       closeCart();
-      pollOrderStatus();
+      pollAllOrders();
     } else {
       const msg = data && data.message ? data.message : "Không gửi được đơn. Vui lòng thử lại.";
       showSendResult(false, msg);
@@ -749,136 +766,137 @@ function stateDisplay(state) {
   }
 }
 
-/* Vẽ thẻ "Đơn của tôi" (số chờ to + trạng thái + món + nút Sửa/Hủy). Ẩn nếu chưa có đơn. */
-function renderMyOrder() {
+/* Vẽ DANH SÁCH "đơn của tôi" (mới nhất trên). Ẩn cả khối nếu chưa có đơn nào. */
+function renderMyOrders() {
   const box = $("myOrderBox");
   if (!box) return;
-  if (!myOrder) { box.hidden = true; return; }
+  if (!myOrders.length) { box.hidden = true; box.innerHTML = ""; return; }
 
-  const d = stateDisplay(myOrder.state);
-  const canEdit = myOrder.state === "Pending";   // chỉ sửa/hủy khi chưa được nhận
-  const itemsHtml = (myOrder.items || [])
+  box.className = "myorders";
+  box.innerHTML =
+    `<div class="myorders__title">📋 Đơn của bạn (${myOrders.length})</div>` +
+    myOrders.map((o, idx) => renderOrderCard(o, idx)).join("");
+  box.hidden = false;
+
+  // Gắn sự kiện nút cho từng đơn (theo data-idx)
+  box.querySelectorAll("[data-edit]").forEach((b) =>
+    b.addEventListener("click", () => editMyOrder(parseInt(b.getAttribute("data-edit")))));
+  box.querySelectorAll("[data-cancel]").forEach((b) =>
+    b.addEventListener("click", () => cancelMyOrder(parseInt(b.getAttribute("data-cancel")))));
+}
+
+/* HTML 1 thẻ đơn. SỐ CHỜ chỉ hiện khi đã được xác nhận (servingNumber có giá trị). */
+function renderOrderCard(o, idx) {
+  const d = stateDisplay(o.state);
+  const canEdit = o.state === "Pending";
+  const itemsHtml = (o.items || [])
     .map((it) => `<div class="myorder__item"><span>${it.qty}× ${escapeHtml(it.ten)}</span><span>${formatMoney(it.gia * it.qty)}đ</span></div>`)
     .join("");
 
-  box.className = "myorder " + d.cls;
-  box.innerHTML =
-    `<div class="myorder__head">
-       <div class="myorder__waitlabel">SỐ CHỜ CỦA BẠN</div>
-       <div class="myorder__waitnum">#${escapeHtml(myOrder.waitingNumber || "?")}</div>
-     </div>
-     <div class="myorder__status">${escapeHtml(d.label)}</div>
-     <div class="myorder__desc">${escapeHtml(d.desc)}</div>
-     <div class="myorder__items">${itemsHtml}</div>
-     <div class="myorder__total">Tổng: <b>${formatMoney(myOrder.total)}đ</b></div>
-     ${canEdit
-        ? `<div class="myorder__actions">
-             <button class="myorder__btn myorder__btn--edit" id="myOrderEdit">✏️ Sửa đơn</button>
-             <button class="myorder__btn myorder__btn--cancel" id="myOrderCancel">🗑️ Hủy đơn</button>
-           </div>`
-        : `<button class="myorder__btn myorder__btn--new" id="myOrderNew">➕ Đặt đơn mới</button>`}`;
-  box.hidden = false;
+  // Số chờ: có khi đã xác nhận. Đang chờ -> hiện "Đang chờ xác nhận" thay vì số.
+  const headHtml = (o.servingNumber != null)
+    ? `<div class="myorder__waitlabel">SỐ CHỜ CỦA BẠN</div>
+       <div class="myorder__waitnum">#${escapeHtml(pad3(o.servingNumber))}</div>`
+    : `<div class="myorder__waitlabel">CHƯA CÓ SỐ</div>
+       <div class="myorder__waitpending">Chờ nhân viên xác nhận</div>`;
 
-  if (canEdit) {
-    const e = $("myOrderEdit"); if (e) e.addEventListener("click", editMyOrder);
-    const c = $("myOrderCancel"); if (c) c.addEventListener("click", cancelMyOrder);
-  } else {
-    const n = $("myOrderNew"); if (n) n.addEventListener("click", dismissMyOrder);
-  }
+  return `<div class="myorder ${d.cls}">
+    <div class="myorder__head">${headHtml}</div>
+    <div class="myorder__status">${escapeHtml(d.label)}</div>
+    <div class="myorder__desc">${escapeHtml(d.desc)}</div>
+    <div class="myorder__items">${itemsHtml}</div>
+    <div class="myorder__total">Tổng: <b>${formatMoney(o.total)}đ</b></div>
+    ${canEdit
+      ? `<div class="myorder__actions">
+           <button class="myorder__btn myorder__btn--edit" data-edit="${idx}">✏️ Sửa đơn</button>
+           <button class="myorder__btn myorder__btn--cancel" data-cancel="${idx}">🗑️ Hủy đơn</button>
+         </div>`
+      : ``}
+  </div>`;
 }
 
-/* Format tiền VND (dùng cho thẻ "đơn của tôi"). escapeHtml dùng hàm có sẵn ở đầu file. */
+function pad3(n) { const s = String(n); return s.length >= 3 ? s : ("000" + s).slice(-3); }
+
+/* Format tiền VND. escapeHtml dùng hàm có sẵn ở đầu file. */
 function formatMoney(n) {
   return (Number(n) || 0).toLocaleString("vi-VN");
 }
 
-/* Poll trạng thái đơn mỗi 10s. Tự dừng khi đơn đã xử lý xong (Accepted/Rejected/Cancelled). */
+/* Poll trạng thái TẤT CẢ đơn chưa kết thúc mỗi 10s. Dừng khi mọi đơn đã xong. */
 function startStatusPoll() {
   stopStatusPoll();
-  if (!myOrder || !myOrder.orderId) return;
-  pollOrderStatus();                              // chạy ngay 1 lần
-  statusTimer = setInterval(pollOrderStatus, 10000);
+  if (!myOrders.length) return;
+  pollAllOrders();
+  statusTimer = setInterval(pollAllOrders, 10000);
 }
 function stopStatusPoll() {
   if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
 }
 
-async function pollOrderStatus() {
-  if (!myOrder || !myOrder.orderId) { stopStatusPoll(); return; }
-  // Đơn khách tự hủy -> giữ trạng thái Cancelled, không poll nữa.
-  if (myOrder.state === "Cancelled") { stopStatusPoll(); return; }
-  try {
-    const res = await fetch(API_BASE + "/api/public/order-status/" + encodeURIComponent(myOrder.orderId), {
-      headers: { "Accept": "application/json" }
-    });
-    if (res.status === 404) {
-      // Đơn không còn (rất hiếm) -> bỏ theo dõi.
-      stopStatusPoll(); return;
-    }
-    if (!res.ok) return;   // lỗi tạm -> giữ trạng thái cũ, lần sau thử lại
-    const data = await res.json();
-    if (data && data.state && data.state !== myOrder.state) {
-      myOrder.state = data.state;
-      if (data.waitingNumber) myOrder.waitingNumber = data.waitingNumber;
-      saveMyOrder();
-      renderMyOrder();
-    }
-    // Đã xử lý xong -> ngừng poll (Accepted/Rejected).
-    if (myOrder.state === "Accepted" || myOrder.state === "Rejected") stopStatusPoll();
-  } catch (e) { /* mạng chập chờn -> bỏ qua, lần sau thử lại */ }
+async function pollAllOrders() {
+  // Chỉ poll đơn còn "động" (Pending/Accepted) — Rejected/Cancelled là trạng thái cuối.
+  const active = myOrders.filter((o) => o.state === "Pending" || o.state === "Accepted");
+  if (!active.length) { stopStatusPoll(); return; }
+
+  let changed = false;
+  for (const o of active) {
+    try {
+      const res = await fetch(API_BASE + "/api/public/order-status/" + encodeURIComponent(o.orderId),
+        { headers: { "Accept": "application/json" } });
+      if (res.status === 404) continue;
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data) {
+        if (data.state && data.state !== o.state) { o.state = data.state; changed = true; }
+        if (data.servingNumber != null && data.servingNumber !== o.servingNumber) { o.servingNumber = data.servingNumber; changed = true; }
+      }
+    } catch (e) { /* mạng chập chờn -> bỏ qua */ }
+  }
+  if (changed) { saveMyOrders(); renderMyOrders(); }
 }
 
-/* Khách bấm "Sửa đơn": nạp lại món của đơn vào giỏ + mở giỏ. Khi "Gửi" sẽ gọi UPDATE (không tạo mới). */
-function editMyOrder() {
-  if (!myOrder || myOrder.state !== "Pending") return;
+/* Khách "Sửa đơn" thứ idx: nạp lại món vào giỏ + đánh dấu đang sửa đơn đó. */
+function editMyOrder(idx) {
+  const o = myOrders[idx];
+  if (!o || o.state !== "Pending") return;
   cart = {};
-  (myOrder.items || []).forEach((it) => {
+  (o.items || []).forEach((it) => {
     cart[it.id] = { id: it.id, ten: it.ten, gia: it.gia, anh: it.anh, qty: it.qty, note: it.note || "" };
   });
   saveCart();
-  const noteEl = $("cartNote"); if (noteEl) noteEl.value = myOrder.note || "";
+  const noteEl = $("cartNote"); if (noteEl) noteEl.value = o.note || "";
   renderCartBar();
   render();
   openCart();
-  // Đánh dấu đang sửa: nút gửi đổi nhãn + submitOrder sẽ gọi endpoint update.
-  editingOrderId = myOrder.orderId;
+  editingOrderId = o.orderId;
   updateSubmitLabel();
 }
 
-/* Khách bấm "Hủy đơn": gọi API hủy (chỉ khi chưa nhân viên nhận). */
-async function cancelMyOrder() {
-  if (!myOrder || myOrder.state !== "Pending") return;
+/* Khách "Hủy đơn" thứ idx (chỉ khi chưa nhân viên nhận). */
+async function cancelMyOrder(idx) {
+  const o = myOrders[idx];
+  if (!o || o.state !== "Pending") return;
   if (!confirm("Hủy đơn này? Bạn có thể đặt lại sau.")) return;
   try {
     const keyParam = tableKey ? "&k=" + encodeURIComponent(tableKey) : "";
     const res = await fetch(
-      API_BASE + "/api/public/orders/" + encodeURIComponent(myOrder.orderId) +
+      API_BASE + "/api/public/orders/" + encodeURIComponent(o.orderId) +
       "/cancel?ban=" + encodeURIComponent(tableNumber) + keyParam,
       { method: "POST", headers: { "Accept": "application/json" } });
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      myOrder.state = "Cancelled";
-      saveMyOrder();
-      stopStatusPoll();
-      renderMyOrder();
+      o.state = "Cancelled";
+      saveMyOrders();
+      renderMyOrders();
     } else if (res.status === 409) {
-      // Nhân viên vừa nhận đơn -> không hủy được. Cập nhật trạng thái + báo.
       showSendResult(false, (data && data.message) || "Đơn đã được nhân viên tiếp nhận, không hủy được.");
-      pollOrderStatus();
+      pollAllOrders();
     } else {
       showSendResult(false, (data && data.message) || "Không hủy được đơn. Vui lòng thử lại.");
     }
   } catch (e) {
     showSendResult(false, "Lỗi mạng. Vui lòng thử lại.");
   }
-}
-
-/* Đóng thẻ "đơn của tôi" để đặt đơn mới (sau khi đơn cũ đã xong). */
-function dismissMyOrder() {
-  myOrder = null;
-  saveMyOrder();
-  stopStatusPoll();
-  renderMyOrder();
 }
 
 /* ============================================================
@@ -895,9 +913,9 @@ function init() {
   $("retryBtn").addEventListener("click", loadMenu);
   loadMenu();
 
-  // Khôi phục "đơn của tôi" của bàn này (khách lỡ tải lại trang) + tiếp tục theo dõi.
-  loadMyOrderFromStorage();
-  if (myOrder) { renderMyOrder(); startStatusPoll(); }
+  // Khôi phục danh sách "đơn của tôi" của bàn này (lọc đơn quá 3h) + tiếp tục theo dõi.
+  loadMyOrdersFromStorage();
+  if (myOrders.length) { renderMyOrders(); startStatusPoll(); }
 }
 
 if (document.readyState === "loading") {
