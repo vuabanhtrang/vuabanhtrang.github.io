@@ -17,7 +17,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- ?v=5 là "cache bust": đổi số này mỗi lần sửa CSS để điện thoại tải bản mới -->
-  <link rel="stylesheet" href="style.css?v=10" />
+  <link rel="stylesheet" href="style.css?v=11" />
 </head>
 <body>
 
@@ -78,6 +78,9 @@
       <span>Facebook</span>
     </a>
   </div>
+
+  <!-- ====== "ĐƠN CỦA TÔI": số chờ + trạng thái + sửa/hủy (JS điền, ẩn nếu chưa đặt) ====== -->
+  <div class="myorder" id="myOrderBox" hidden></div>
 
   <!-- ====== Ô TÌM KIẾM ====== -->
   <div class="search">
@@ -185,7 +188,7 @@
   </div>
 
   <!-- Menu lấy ĐỘNG từ API POS (script.js) — KHÔNG còn dùng menu-data.js -->
-  <script src="script.js?v=12"></script>
+  <script src="script.js?v=13"></script>
 </body>
 </html>
 
