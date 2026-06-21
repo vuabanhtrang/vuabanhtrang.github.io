@@ -195,6 +195,34 @@ img { max-width: 100%; display: block; }
   height: auto;
   border-radius: 8px;
 }
+
+/* 2 tab Món ăn / Nước — ghim đầu lightbox, luôn thấy khi cuộn ảnh */
+.lightbox__tabs {
+  position: fixed;
+  top: 10px;
+  left: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 51;
+}
+.lightbox__tabs[hidden] { display: none; }
+.lightbox__tab {
+  padding: 9px 16px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  border-radius: 22px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.lightbox__tab.active {
+  background: var(--green);
+  border-color: #fff;
+}
+.lightbox__tab:active { transform: scale(0.97); }
 .lightbox__close {
   position: fixed;
   top: 10px; right: 12px;

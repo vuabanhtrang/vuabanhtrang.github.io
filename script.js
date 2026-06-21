@@ -706,33 +706,58 @@ function setupLightbox() {
   const box = $("lightbox");
   if (!box) return;
   const imgEl = $("lightboxImg");
-  const MENU_SRC = "images/menu-quan.jpg?v=2";
+  const tabs = $("lightboxTabs");
+  // 2 ảnh menu quán (bump ?v= khi thay ảnh để điện thoại tải bản mới)
+  const FOOD_SRC = "images/menu-quan.jpg?v=2";
+  const DRINK_SRC = "images/menu-nuoc.jpg?v=1";
 
-  // Mo lightbox voi 1 anh bat ky (src + alt). Khong truyen -> mac dinh menu quan.
-  const open = (src, alt) => {
-    if (imgEl) {
-      imgEl.src = src || MENU_SRC;
-      imgEl.alt = alt || "Menu quán Vua Bánh Tráng";
-    }
+  // Mở lightbox xem 1 ảnh bất kỳ (phóng to ảnh 1 món) -> KHÔNG hiện tab.
+  const openSingle = (src, alt) => {
+    if (imgEl) { imgEl.src = src; imgEl.alt = alt || "Món ăn"; }
+    if (tabs) tabs.hidden = true;
     box.hidden = false;
     document.body.style.overflow = "hidden";
   };
+
+  // Mở MENU QUÁN với 2 tab Món ăn / Nước. which = "food" | "drink".
+  const openMenu = (which) => {
+    setMenuTab(which || "food");
+    if (tabs) tabs.hidden = false;
+    box.hidden = false;
+    document.body.style.overflow = "hidden";
+  };
+
+  // Đổi ảnh + trạng thái active của 2 tab.
+  const setMenuTab = (which) => {
+    const isDrink = which === "drink";
+    if (imgEl) {
+      imgEl.src = isDrink ? DRINK_SRC : FOOD_SRC;
+      imgEl.alt = isDrink ? "Menu nước Vua Bánh Tráng" : "Menu món ăn Vua Bánh Tráng";
+    }
+    const tf = $("tabFood"), td = $("tabDrink");
+    if (tf) tf.classList.toggle("active", !isDrink);
+    if (td) td.classList.toggle("active", isDrink);
+  };
+
   const close = () => { box.hidden = true; document.body.style.overflow = ""; };
 
-  // Nut "Xem menu quan" -> anh menu quan
+  // Nút "Xem menu" -> mở menu quán, mặc định tab Món ăn
   const btn = $("viewOriginalBtn");
-  if (btn) btn.addEventListener("click", () => open(MENU_SRC, "Menu quán Vua Bánh Tráng"));
+  if (btn) btn.addEventListener("click", () => openMenu("food"));
 
-  // Click ANH MON -> phong to dung mon do. Dung event delegation tren container menu
-  // vi the mon duoc render lai moi lan loc/tim kiem. Chi bat khi bam dung <img> mon
-  // (khong dinh toi nut +/- them gio -> khong xung dot). Bo qua anh fallback (khong co src that).
+  // Bấm tab Món ăn / Nước -> đổi ảnh
+  const tf = $("tabFood"), td = $("tabDrink");
+  if (tf) tf.addEventListener("click", () => setMenuTab("food"));
+  if (td) td.addEventListener("click", () => setMenuTab("drink"));
+
+  // Click ẢNH MÓN -> phóng to đúng món đó (không tab). Event delegation vì món render lại khi lọc/tìm.
   const menuRoot = $("menuList") || document;
   menuRoot.addEventListener("click", (e) => {
     const img = e.target.closest(".dish__img");
     if (!img || img.classList.contains("dish__img--fallback")) return;
     const src = img.getAttribute("src");
     if (!src) return;
-    open(src, img.getAttribute("data-name") || img.alt || "Món ăn");
+    openSingle(src, img.getAttribute("data-name") || img.alt || "Món ăn");
   });
 
   const closeBtn = $("lightboxClose");

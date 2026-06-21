@@ -17,7 +17,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
   <!-- ?v=5 là "cache bust": đổi số này mỗi lần sửa CSS để điện thoại tải bản mới -->
-  <link rel="stylesheet" href="style.css?v=12" />
+  <link rel="stylesheet" href="style.css?v=13" />
 </head>
 <body>
 
@@ -51,7 +51,7 @@
   <!-- Thanh tiện ích nhỏ: xem ảnh menu gốc + gọi nhân viên -->
   <div class="topbar">
     <button type="button" class="topbar__btn topbar__btn--ghost" id="viewOriginalBtn">
-      🖼️ Xem menu quán
+      🖼️ Xem menu (món &amp; nước)
     </button>
     <button type="button" class="topbar__btn topbar__btn--staff" id="staffBtn">
       🔔 Gọi nhân viên
@@ -180,15 +180,20 @@
   <!-- ====== NÚT GỌI NHÂN VIÊN / LIÊN HỆ (cố định dưới màn hình) ====== -->
   <!-- (chuyển xuống cuối để nằm dưới cùng; giỏ hàng nổi phía trên) -->
 
-  <!-- Lớp phủ xem ảnh phóng to: menu quán HOẶC ảnh từng món (src đổi động trong script.js).
+  <!-- Lớp phủ xem ảnh phóng to: menu quán (2 tab Món ăn / Nước) HOẶC ảnh từng món.
        Bấm nền / nút Đóng / Esc để tắt. -->
   <div class="lightbox" id="lightbox" hidden>
     <button type="button" class="lightbox__close" id="lightboxClose" aria-label="Đóng">✕</button>
+    <!-- 2 tab chuyển menu Món ăn / Nước (chỉ hiện khi xem MENU QUÁN, ẩn khi phóng to ảnh 1 món) -->
+    <div class="lightbox__tabs" id="lightboxTabs" hidden>
+      <button type="button" class="lightbox__tab active" id="tabFood" data-menu="food">🍽️ Món ăn</button>
+      <button type="button" class="lightbox__tab" id="tabDrink" data-menu="drink">🥤 Nước</button>
+    </div>
     <img class="lightbox__img" id="lightboxImg" src="images/menu-quan.jpg?v=2" alt="Menu quán Vua Bánh Tráng" />
   </div>
 
   <!-- Menu lấy ĐỘNG từ API POS (script.js) — KHÔNG còn dùng menu-data.js -->
-  <script src="script.js?v=14"></script>
+  <script src="script.js?v=15"></script>
 </body>
 </html>
 
