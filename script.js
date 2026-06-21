@@ -37,6 +37,30 @@ let acceptingOrders = true; // quán có đang nhận đơn online không (serve
 
 const $ = (id) => document.getElementById(id);
 
+/* ---- Âm thanh báo "nhân viên đã xác nhận đơn" ----
+   Phát file GIỌNG ĐỌC "đơn hàng của bạn đã được xác nhận" + rung điện thoại NGAY khi đơn
+   chuyển Pending -> Accepted.
+
+   LƯU Ý: trình duyệt CHẶN âm thanh tự động nếu khách CHƯA tương tác. Nhưng khách QR luôn phải
+   CHẠM để chọn món + gửi đơn trước -> đã có tương tác -> phát được. Khi khách ẨN trình duyệt
+   xuống nền / khóa màn hình thì trình duyệt tạm dừng JS + audio -> KHÔNG kêu (giới hạn trình
+   duyệt; muốn báo cả khi chạy nền cần Web Push -> làm riêng 1 đợt sau). Bump ?v= khi đổi file. */
+let _acceptedAudio = null;
+function playAcceptedSound() {
+  // Rung (nếu hỗ trợ) — 2 nhịp ngắn.
+  try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (e) {}
+  try {
+    if (!_acceptedAudio) {
+      _acceptedAudio = new Audio("audio/order-accepted.mp3?v=1");
+      _acceptedAudio.preload = "auto";
+    }
+    _acceptedAudio.currentTime = 0;
+    // play() trả Promise — nuốt lỗi (vd autoplay bị chặn) để không vỡ luồng poll.
+    const p = _acceptedAudio.play();
+    if (p && p.catch) p.catch(() => {});
+  } catch (e) { /* không phát được -> bỏ qua, vẫn có rung + toast */ }
+}
+
 /* ---- Lưu/đọc giỏ theo bàn (localStorage) — khách lỡ refresh không mất món ---- */
 function cartStorageKey() {
   return "vbt_cart_ban_" + (tableNumber != null ? tableNumber : "none");
@@ -851,11 +875,25 @@ function formatMoney(n) {
 function startStatusPoll() {
   stopStatusPoll();
   if (!myOrders.length) return;
+  ensureVisibilityRepoll();   // bật báo-nhanh khi khách mở lại browser
   pollAllOrders();
   statusTimer = setInterval(pollAllOrders, 10000);
 }
 function stopStatusPoll() {
   if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
+}
+
+/* Khách MỞ LẠI browser (tab từ nền -> hiển thị): poll NGAY (không chờ 10s) -> nếu đơn đã được
+   xác nhận lúc khách vắng mặt thì báo âm thanh "đã xác nhận" liền (đúng 1 lần nhờ cờ notifiedAccepted). */
+let _visListenerAdded = false;
+function ensureVisibilityRepoll() {
+  if (_visListenerAdded) return;
+  _visListenerAdded = true;
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && myOrders.some((o) => o.state === "Pending" || o.state === "Accepted")) {
+      pollAllOrders();
+    }
+  });
 }
 
 async function pollAllOrders() {
@@ -864,6 +902,7 @@ async function pollAllOrders() {
   if (!active.length) { stopStatusPoll(); return; }
 
   let changed = false;
+  let justAccepted = null;   // đơn vừa cần BÁO ÂM THANH "đã xác nhận" (1 lần)
   for (const o of active) {
     try {
       const res = await fetch(API_BASE + "/api/public/order-status/" + encodeURIComponent(o.orderId),
@@ -874,10 +913,38 @@ async function pollAllOrders() {
       if (data) {
         if (data.state && data.state !== o.state) { o.state = data.state; changed = true; }
         if (data.servingNumber != null && data.servingNumber !== o.servingNumber) { o.servingNumber = data.servingNumber; changed = true; }
+        // BÁO 1 LẦN khi đơn ĐÃ được xác nhận (Accepted) mà CHƯA từng báo. Cờ notifiedAccepted lưu
+        // theo đơn (localStorage) -> khách ẩn browser lúc xác nhận, mở lại VẪN nghe đúng 1 lần;
+        // các lần mở sau KHÔNG lặp. (data.state==Accepted gồm cả khi đổi vừa rồi lẫn đã sẵn từ trước.)
+        if (data.state === "Accepted" && !o.notifiedAccepted) {
+          o.notifiedAccepted = true;
+          changed = true;
+          justAccepted = o;
+        }
       }
     } catch (e) { /* mạng chập chờn -> bỏ qua */ }
   }
   if (changed) { saveMyOrders(); renderMyOrders(); }
+  // Phát SAU khi đã lưu cờ -> nếu phát lỗi cũng không báo lại (đã đánh dấu).
+  if (justAccepted) {
+    playAcceptedSound();
+    const num = justAccepted.servingNumber != null ? (" — Số chờ #" + pad3(justAccepted.servingNumber)) : "";
+    notifyAcceptedToast("✅ Nhân viên đã xác nhận đơn của bạn" + num);
+  }
+}
+
+/* Toast báo "đã xác nhận" — tái dùng phần tử #toast (giống nút gọi nhân viên). Tự ẩn sau 5s. */
+function notifyAcceptedToast(msg) {
+  const toast = $("toast");
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.hidden = false;
+  requestAnimationFrame(() => toast.classList.add("toast--show"));
+  clearTimeout(notifyAcceptedToast._t);
+  notifyAcceptedToast._t = setTimeout(() => {
+    toast.classList.remove("toast--show");
+    setTimeout(() => (toast.hidden = true), 250);
+  }, 5000);
 }
 
 /* Khách "Sửa đơn" thứ idx: nạp lại món vào giỏ + đánh dấu đang sửa đơn đó. */
